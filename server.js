@@ -4,25 +4,36 @@ const server = http.createServer((req, res) => {
   console.log(`${req.method} ${req.url}`);
 
   let reqBody = "";
+
   req.on("data", (data) => {
     reqBody += data;
   });
 
   req.on("end", () => {
-    // Parse the body of the request as JSON if Content-Type header is
-      // application/json
-    // Parse the body of the request as x-www-form-urlencoded if Content-Type
-      // header is x-www-form-urlencoded
     if (reqBody) {
-      req.body = reqBody
-        .split("&")
-        .map((keyValuePair) => keyValuePair.split("="))
-        .map(([key, value]) => [key, value.replace(/\+/g, " ")])
-        .map(([key, value]) => [key, decodeURIComponent(value)])
-        .reduce((acc, [key, value]) => {
-          acc[key] = value;
-          return acc;
-        }, {});
+      if (req.headers['content-type'] === 'application/json') {
+        // Parse the request body as JSON
+        try {
+          req.body = JSON.parse(reqBody);
+        } catch (error) {
+          // Handle JSON parsing errors
+          console.error('Error parsing JSON:', error);
+          res.statusCode = 400; // Bad Request
+          res.end('Invalid JSON');
+          return;
+        }
+      } else {
+        // Parse the body of the request as x-www-form-urlencoded
+        req.body = reqBody
+          .split("&")
+          .map((keyValuePair) => keyValuePair.split("="))
+          .map(([key, value]) => [key, value.replace(/\+/g, " ")])
+          .map(([key, value]) => [key, decodeURIComponent(value)])
+          .reduce((acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          }, {});
+      }
 
       // Log the body of the request to the terminal
       console.log(req.body);
@@ -32,7 +43,15 @@ const server = http.createServer((req, res) => {
       "Hello": "World!"
     };
 
-    // Return the `resBody` object as JSON in the body of the response
+    // Serialize the resBody object into JSON
+    const responseBody = JSON.stringify(resBody);
+
+    // Set the necessary response components, including the Content-Type
+    res.setHeader('Content-Type', 'application/json');
+    res.statusCode = 200; // OK
+
+    // Return the JSON response in the body of the response
+    res.end(responseBody);
   });
 });
 
